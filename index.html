@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <h2>ESP32 BLE 小车控制</h2>
+  <button onclick="connectBLE()">🔌连接ESP32</button>
+  <button onclick="disconnectBLE()" id="disconnectBtn" disabled>❌断开连接</button>
+  <p id="status">状态: 未连接</p>
+
+  <div id="control" style="display: none;">
+    <button onclick="sendCommand('f')">⬆ 前进</button>
+    <button onclick="sendCommand('b')">⬇ 后退</button>
+    <button onclick="sendCommand('l')">⬅ 左转</button>
+    <button onclick="sendCommand('r')">➡ 右转</button>
+    <button onclick="sendCommand('s')">⏹ 停止</button>
+  </div>
+
+  <button onclick="readData()" disabled id="readBtn">📄读取数据</button>
+  <p id="data"></p>
+
+  <script>
+    let device, characteristic;
+
+    async function connectBLE() {
+      try {
+        device = await navigator.bluetooth.requestDevice({
+          filters: [{ services: ['4fafc201-1fb5-459e-8fcc-c5c9c331914b'] }]
+        });
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService('4fafc201-1fb5-459e-8fcc-c5c9c331914b');
+        characteristic = await service.getCharacteristic('beb5483e-36e1-4688-b7f5-ea07361b26a8');
+
+        document.getElementById('status').textContent = '状态: ✅已连接';
+        document.getElementById('readBtn').disabled = false;
+        document.getElementById('disconnectBtn').disabled = false;
+        document.getElementById('control').style.display = 'block';
+      } catch (error) {
+        console.error('连接失败:', error);
+        alert('连接失败: ' + error.message);
+      }
+    }
+
+    async function disconnectBLE() {
+      if (device && device.gatt.connected) {
+        await device.gatt.disconnect();
+        document.getElementById('status').textContent = '状态: 🔌已断开';
+        document.getElementById('readBtn').disabled = true;
+        document.getElementById('disconnectBtn').disabled = true;
+        document.getElementById('control').style.display = 'none';
+        console.log('BLE已断开连接');
+      } else {
+        alert('设备尚未连接');
+      }
+    }
+
+    async function sendCommand(cmd) {
+      if (!characteristic) {
+        alert('尚未连接设备');
+        return;
+      }
+      const encoder = new TextEncoder('utf-8');
+      await characteristic.writeValue(encoder.encode(cmd));
+      console.log('已发送命令:', cmd);
+    }
+
+    async function readData() {
+      const value = await characteristic.readValue();
+      const decoder = new TextDecoder('utf-8');
+      document.getElementById('data').textContent = '数据: ' + decoder.decode(value);
+    }
+  </script>
+</body>
+</html>
