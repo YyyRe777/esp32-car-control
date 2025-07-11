@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
 <body>
-  <h2>ESP32 BLE 小车控制</h2>
-  <button onclick="connectBLE()">🔌连接ESP32</button>
+  <h2>ESP32 BLE コントローラー</h2>
+  <button onclick="connectBLE()">🔌接続ESP32</button>
   <button onclick="disconnectBLE()" id="disconnectBtn" disabled>❌断开连接</button>
-  <p id="status">状态: 未连接</p>
+  <p id="status">状態: 接続していません</p>
 
   <div id="control" style="display: none;">
     <button onclick="sendCommand('l')">⬅ 左转</button>
