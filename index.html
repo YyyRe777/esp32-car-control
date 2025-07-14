@@ -7,14 +7,14 @@
   <p id="status">状態: 接続していません</p>
 
   <div id="control" style="display: none;">
-    <button onclick="sendCommand('l')">⬅ 左转</button>
-    <button onclick="sendCommand('r')">➡ 右转</button>
-    <button onclick="sendCommand('f')">⬆ 前进</button>
-    <button onclick="sendCommand('b')">⬇ 后退</button>
+    <button onclick="sendCommand('l')">⬆ 前</button>
+    <button onclick="sendCommand('r')">⬇ 後</button>
+    <button onclick="sendCommand('f')">⬅ 左</button>
+    <button onclick="sendCommand('b')">➡ 右</button>
     <button onclick="sendCommand('s')">⏹ 停止</button>
   </div>
 
-  <button onclick="readData()" disabled id="readBtn">📄读取数据</button>
+  <button onclick="readData()" disabled id="readBtn">📄データ</button>
   <p id="data"></p>
 
   <script>
@@ -29,43 +29,43 @@
         const service = await server.getPrimaryService('4fafc201-1fb5-459e-8fcc-c5c9c331914b');
         characteristic = await service.getCharacteristic('beb5483e-36e1-4688-b7f5-ea07361b26a8');
 
-        document.getElementById('status').textContent = '状态: ✅已连接';
+        document.getElementById('status').textContent = '状态: ✅接続済み';
         document.getElementById('readBtn').disabled = false;
         document.getElementById('disconnectBtn').disabled = false;
         document.getElementById('control').style.display = 'block';
       } catch (error) {
-        console.error('连接失败:', error);
-        alert('连接失败: ' + error.message);
+        console.error('接続失败:', error);
+        alert('接続失败: ' + error.message);
       }
     }
 
     async function disconnectBLE() {
       if (device && device.gatt.connected) {
         await device.gatt.disconnect();
-        document.getElementById('status').textContent = '状态: 🔌已断开';
+        document.getElementById('status').textContent = '状態: 🔌接続切った';
         document.getElementById('readBtn').disabled = true;
         document.getElementById('disconnectBtn').disabled = true;
         document.getElementById('control').style.display = 'none';
-        console.log('BLE已断开连接');
+        console.log('BLE接続切った');
       } else {
-        alert('设备尚未连接');
+        alert('まだ接続していません');
       }
     }
 
     async function sendCommand(cmd) {
       if (!characteristic) {
-        alert('尚未连接设备');
+        alert('まだ接続していません');
         return;
       }
       const encoder = new TextEncoder('utf-8');
       await characteristic.writeValue(encoder.encode(cmd));
-      console.log('已发送命令:', cmd);
+      console.log('送りました:', cmd);
     }
 
     async function readData() {
       const value = await characteristic.readValue();
       const decoder = new TextDecoder('utf-8');
-      document.getElementById('data').textContent = '数据: ' + decoder.decode(value);
+      document.getElementById('data').textContent = 'データ: ' + decoder.decode(value);
     }
   </script>
 </body>
