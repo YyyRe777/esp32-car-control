@@ -2,19 +2,27 @@
 <html>
 <body>
   <h2>ESP32 BLE コントローラー</h2>
-  <button onclick="connectBLE()">🔌接続ESP32</button>
-  <button onclick="disconnectBLE()" id="disconnectBtn" disabled>❌接続切る</button>
-  <p id="status">状態: 接続していません</p>
+  <button onclick="connectBLE()">🔌 接続</button>
+  <button onclick="disconnectBLE()" id="disconnectBtn" disabled>❌ 切断</button>
+  <p id="status">状態: 未接続</p>
 
-  <div id="control" style="display: none;">
-    <button onclick="sendCommand('l')">⬆ 前</button>
-    <button onclick="sendCommand('r')">⬇ 後</button>
-    <button onclick="sendCommand('f')">⬅ 左</button>
-    <button onclick="sendCommand('b')">➡ 右</button>
-    <button onclick="sendCommand('s')">⏹ 停止</button>
+  <div id="control" style="display: none; margin-top: 10px;">
+    <!-- 电机控制 -->
+    <div>
+      <button onclick="sendCommand('f')">⬆ 前進</button>
+      <button onclick="sendCommand('b')">⬇ 後退</button>
+      <button onclick="sendCommand('l')">⬅ 左転</button>
+      <button onclick="sendCommand('r')">➡ 右転</button>
+      <button onclick="sendCommand('s')">⏹ 停止</button>
+    </div>
+    <!-- 舵机控制 -->
+    <div style="margin-top: 10px;">
+      <button onclick="sendCommand('o')">🔓 開く (Servo Open)</button>
+      <button onclick="sendCommand('c')">🔒 閉じる (Servo Close)</button>
+    </div>
   </div>
 
-  <button onclick="readData()" disabled id="readBtn">📄データ</button>
+  <button onclick="readData()" disabled id="readBtn" style="margin-top: 10px;">📄 読み取り</button>
   <p id="data"></p>
 
   <script>
@@ -29,24 +37,24 @@
         const service = await server.getPrimaryService('4fafc201-1fb5-459e-8fcc-c5c9c331914b');
         characteristic = await service.getCharacteristic('beb5483e-36e1-4688-b7f5-ea07361b26a8');
 
-        document.getElementById('status').textContent = '状态: ✅接続済み';
+        document.getElementById('status').textContent = '状態: ✅ 接続済み';
         document.getElementById('readBtn').disabled = false;
         document.getElementById('disconnectBtn').disabled = false;
         document.getElementById('control').style.display = 'block';
       } catch (error) {
-        console.error('接続失败:', error);
-        alert('接続失败: ' + error.message);
+        console.error('接続失敗:', error);
+        alert('接続失敗: ' + error.message);
       }
     }
 
     async function disconnectBLE() {
       if (device && device.gatt.connected) {
         await device.gatt.disconnect();
-        document.getElementById('status').textContent = '状態: 🔌接続切った';
+        document.getElementById('status').textContent = '状態: 🔌 切断済み';
         document.getElementById('readBtn').disabled = true;
         document.getElementById('disconnectBtn').disabled = true;
         document.getElementById('control').style.display = 'none';
-        console.log('BLE接続切った');
+        console.log('BLE 切断しました');
       } else {
         alert('まだ接続していません');
       }
@@ -59,7 +67,7 @@
       }
       const encoder = new TextEncoder('utf-8');
       await characteristic.writeValue(encoder.encode(cmd));
-      console.log('送りました:', cmd);
+      console.log('コマンド送信:', cmd);
     }
 
     async function readData() {
