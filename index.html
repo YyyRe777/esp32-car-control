@@ -1,72 +1,168 @@
 <!DOCTYPE html>
 <html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 BLE コントローラー</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+            background-color: #f5f5f5;
+        }
+        button {
+            padding: 12px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        #connectBtn {
+            background: #4CAF50;
+            color: white;
+        }
+        #disconnectBtn {
+            background: #f44336;
+            color: white;
+        }
+        .control-btn {
+            background: #2196F3;
+            color: white;
+            width: 80px;
+            height: 80px;
+            font-size: 20px;
+        }
+        #servoBtn {
+            background: #9C27B0;
+            color: white;
+            padding: 15px 30px;
+            margin-top: 20px;
+        }
+        #servoBtn.off {
+            background: #757575;
+        }
+        #status {
+            padding: 10px;
+            margin: 15px 0;
+            background: #e8f5e9;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        #controlPanel {
+            display: none;
+            margin: 20px 0;
+        }
+        .dpad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 0 auto;
+            width: 240px;
+        }
+        .center {
+            grid-column: 2;
+        }
+    </style>
+</head>
 <body>
-  <h2>ESP32 BLE コントローラー</h2>
-  <button onclick="connectBLE()">🔌接続ESP32</button>
-  <button onclick="disconnectBLE()" id="disconnectBtn" disabled>❌接続切る</button>
-  <p id="status">状態: 接続していません</p>
+    <h2>ESP32 BLE コントローラー</h2>
+    
+    <button id="connectBtn" onclick="connectBLE()">🔌 ESP32に接続</button>
+    <button id="disconnectBtn" onclick="disconnectBLE()" disabled>❌ 接続切断</button>
+    
+    <p id="status">状態: 接続していません</p>
+    
+    <div id="controlPanel">
+        <div class="dpad">
+            <button class="control-btn" onclick="sendCommand('f')">⬆ 前進</button>
+            <button class="control-btn" onclick="sendCommand('l')">⬅ 左転</button>
+            <button class="control-btn center" onclick="sendCommand('s')">⏹ 停止</button>
+            <button class="control-btn" onclick="sendCommand('r')">➡ 右転</button>
+            <button class="control-btn" onclick="sendCommand('b')">⬇ 後退</button>
+        </div>
+        
+        <button id="servoBtn" class="off" onclick="toggleServo()">🔄 サーボ起動</button>
+    </div>
 
-  <div id="control" style="display: none;">
-    <button onclick="sendCommand('l')">⬆ 前</button>
-    <button onclick="sendCommand('r')">⬇ 後</button>
-    <button onclick="sendCommand('f')">⬅ 左</button>
-    <button onclick="sendCommand('b')">➡ 右</button>
-    <button onclick="sendCommand('s')">⏹ 停止</button>
-  </div>
+    <script>
+        let device, characteristic;
+        let isServoOn = false;
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const statusDisplay = document.getElementById('status');
+        const controlPanel = document.getElementById('controlPanel');
+        const servoBtn = document.getElementById('servoBtn');
 
-  <button onclick="readData()" disabled id="readBtn">📄データ</button>
-  <p id="data"></p>
+        async function connectBLE() {
+            try {
+                device = await navigator.bluetooth.requestDevice({
+                    filters: [{ name: 'ESP32-Car' }],
+                    optionalServices: ['4fafc201-1fb5-459e-8fcc-c5c9c331914b']
+                });
+                
+                const server = await device.gatt.connect();
+                const service = await server.getPrimaryService('4fafc201-1fb5-459e-8fcc-c5c9c331914b');
+                characteristic = await service.getCharacteristic('beb5483e-36e1-4688-b7f5-ea07361b26a8');
+                
+                // 接続成功時のUI更新
+                statusDisplay.textContent = '状態: ✅ 接続済み';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                controlPanel.style.display = 'block';
+                
+                // 切断時のイベントリスナー
+                device.addEventListener('gattserverdisconnected', onDisconnected);
+                
+            } catch (error) {
+                console.error('接続失敗:', error);
+                statusDisplay.textContent = `状態: ❌ エラー (${error.message})`;
+            }
+        }
 
-  <script>
-    let device, characteristic;
+        function onDisconnected() {
+            statusDisplay.textContent = '状態: 🔌 接続が切断されました';
+            connectBtn.disabled = false;
+            disconnectBtn.disabled = true;
+            controlPanel.style.display = 'none';
+            servoBtn.classList.add('off');
+            servoBtn.textContent = '🔄 サーボ起動';
+            isServoOn = false;
+        }
 
-    async function connectBLE() {
-      try {
-        device = await navigator.bluetooth.requestDevice({
-          filters: [{ services: ['4fafc201-1fb5-459e-8fcc-c5c9c331914b'] }]
-        });
-        const server = await device.gatt.connect();
-        const service = await server.getPrimaryService('4fafc201-1fb5-459e-8fcc-c5c9c331914b');
-        characteristic = await service.getCharacteristic('beb5483e-36e1-4688-b7f5-ea07361b26a8');
+        async function disconnectBLE() {
+            if (device && device.gatt.connected) {
+                await device.gatt.disconnect();
+            } else {
+                alert('既に切断されています');
+            }
+        }
 
-        document.getElementById('status').textContent = '状态: ✅接続済み';
-        document.getElementById('readBtn').disabled = false;
-        document.getElementById('disconnectBtn').disabled = false;
-        document.getElementById('control').style.display = 'block';
-      } catch (error) {
-        console.error('接続失败:', error);
-        alert('接続失败: ' + error.message);
-      }
-    }
+        function toggleServo() {
+            isServoOn = !isServoOn;
+            sendCommand(isServoOn ? 'v1' : 'v0');  // v1=ON, v0=OFF
+            servoBtn.textContent = isServoOn ? '⏹ サーボ停止' : '🔄 サーボ起動';
+            servoBtn.classList.toggle('off', !isServoOn);
+        }
 
-    async function disconnectBLE() {
-      if (device && device.gatt.connected) {
-        await device.gatt.disconnect();
-        document.getElementById('status').textContent = '状態: 🔌接続切った';
-        document.getElementById('readBtn').disabled = true;
-        document.getElementById('disconnectBtn').disabled = true;
-        document.getElementById('control').style.display = 'none';
-        console.log('BLE接続切った');
-      } else {
-        alert('まだ接続していません');
-      }
-    }
-
-    async function sendCommand(cmd) {
-      if (!characteristic) {
-        alert('まだ接続していません');
-        return;
-      }
-      const encoder = new TextEncoder('utf-8');
-      await characteristic.writeValue(encoder.encode(cmd));
-      console.log('送りました:', cmd);
-    }
-
-    async function readData() {
-      const value = await characteristic.readValue();
-      const decoder = new TextDecoder('utf-8');
-      document.getElementById('data').textContent = 'データ: ' + decoder.decode(value);
-    }
-  </script>
+        async function sendCommand(cmd) {
+            if (!characteristic) {
+                alert('先にデバイスに接続してください');
+                return;
+            }
+            try {
+                const encoder = new TextEncoder();
+                await characteristic.writeValue(encoder.encode(cmd));
+                console.log('コマンド送信:', cmd);
+            } catch (error) {
+                console.error('送信失敗:', error);
+                statusDisplay.textContent = '状態: ❌ 送信エラー';
+            }
+        }
+    </script>
 </body>
 </html>
